@@ -1,9 +1,10 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE PatternSynonyms #-}
 
 module Expression (
-    Expr,
+    Expr (..),
     eval,
     subVar,
 ) where
@@ -18,8 +19,8 @@ infixr 6 :**:
 -- | Symbolic Expressions
 data Expr :: (Type -> Type) where
     -- Literal
-    Const :: a -> Expr a
-    Var :: String -> Expr a
+    Const :: !a -> Expr a
+    Var :: !String -> Expr a
     -- Num
     (:+:) :: (Num a) => Expr a -> Expr a -> Expr a
     (:-:) :: (Num a) => Expr a -> Expr a -> Expr a
@@ -68,6 +69,10 @@ viewUnaryOp (ACosh a) = Just (ACosh, a)
 viewUnaryOp (ATanh a) = Just (ATanh, a)
 viewUnaryOp _ = Nothing
 
+
+pattern UnaryOp :: (Expr a -> Expr a) -> Expr a -> Expr a
+pattern UnaryOp f a <- (viewUnaryOp -> (Just (f, a)))
+
 -- | view for binary Expr constructor
 viewBinaryOp :: Expr a -> Maybe (Expr a -> Expr a -> Expr a, Expr a, Expr a)
 viewBinaryOp (a :+: b) = Just ((:+:), a, b)
@@ -76,6 +81,9 @@ viewBinaryOp (a :*: b) = Just ((:*:), a, b)
 viewBinaryOp (a :**: b) = Just ((:**:), a, b)
 viewBinaryOp (a :/: b) = Just ((:/:), a, b)
 viewBinaryOp _ = Nothing
+
+pattern BinaryOp :: (Expr a -> Expr a -> Expr a) -> Expr a -> Expr a -> Expr a
+pattern BinaryOp f a b <- (viewBinaryOp -> (Just (f, a, b)))
 
 instance (Show a) => Show (Expr a) where
     show (Const a) = show a
@@ -103,11 +111,6 @@ instance (Show a) => Show (Expr a) where
     show (ATanh a) = "atanh(" ++ show a ++ ")"
     show (Re a) = "Re(" ++ show a ++ ")"
     show (Im a) = "Im(" ++ show a ++ ")"
-
--- instance (Eq a) => Eq (Expr a) where
---     (Const x) == (Const y) = x == y
---     (Var x) == (Var y) = x == y
---     (viewUnaryOp -> Just (f, x)) == (viewUnaryOp -> Just (g, y)) = getAll $ foldMap All [f == g, x == y]
 
 instance (Num a) => Num (Expr a) where
     fromInteger = Const . fromInteger
@@ -163,8 +166,8 @@ eval (ACosh (Const a)) = Const (acosh a)
 eval (ATanh (Const a)) = Const (atanh a)
 eval (Re (Const a)) = Const (realPart a)
 eval (Im (Const a)) = Const (imagPart a)
-eval (viewUnaryOp -> Just (f, a)) = eval $ f (eval a)
-eval (viewBinaryOp -> Just (f, a, b)) = eval $ f (eval a) (eval b)
+eval (UnaryOp f a) = eval $ f (eval a)
+eval (BinaryOp f a b) = eval $ f (eval a) (eval b)
 eval _expr = error "failed to evaluate expression"
 
 {- | substitute a value into a variable
@@ -175,6 +178,6 @@ subVar (Var x) name val
     | x == name = Const val
     | otherwise = Var x
 subVar (Const a) _ _ = Const a
-subVar (viewUnaryOp -> Just (f, a)) name val = f (subVar a name val)
-subVar (viewBinaryOp -> Just (f, a, b)) name val = f (subVar a name val) (subVar b name val)
+subVar (UnaryOp f a) name val = f (subVar a name val)
+subVar (BinaryOp f a b) name val = f (subVar a name val) (subVar b name val)
 subVar e _ _ = e
