@@ -1,7 +1,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module Expression (
     Expr (..),
@@ -69,7 +69,6 @@ viewUnaryOp (ACosh a) = Just (ACosh, a)
 viewUnaryOp (ATanh a) = Just (ATanh, a)
 viewUnaryOp _ = Nothing
 
-
 pattern UnaryOp :: (Expr a -> Expr a) -> Expr a -> Expr a
 pattern UnaryOp f a <- (viewUnaryOp -> (Just (f, a)))
 
@@ -88,11 +87,11 @@ pattern BinaryOp f a b <- (viewBinaryOp -> (Just (f, a, b)))
 instance (Show a) => Show (Expr a) where
     show (Const a) = show a
     show (Var name) = name
-    show (a :+: b) = show a ++ " + " ++ show b
-    show (a :-: b) = show a ++ " - " ++ show b
-    show (a :*: b) = show a ++ " * " ++ show b
-    show (a :**: b) = show a ++ " ** " ++ show b
-    show (a :/: b) = show a ++ " / " ++ show b
+    show (a :+: b) = '(' : show a ++ " + " ++ show b ++ ")"
+    show (a :-: b) = '(' : show a ++ " - " ++ show b ++ ")"
+    show (a :*: b) = '(' : show a ++ " * " ++ show b ++ ")"
+    show (a :**: b) = '(' : show a ++ " ** " ++ show b ++ ")"
+    show (a :/: b) = '(' : show a ++ " / " ++ show b ++ ")"
     show (Abs a) = '|' : show a ++ "|"
     show (Signum a) = "sgn(" ++ show a ++ ")"
     show (Negate a) = '-' : show a
@@ -166,18 +165,22 @@ eval (ACosh (Const a)) = Const (acosh a)
 eval (ATanh (Const a)) = Const (atanh a)
 eval (Re (Const a)) = Const (realPart a)
 eval (Im (Const a)) = Const (imagPart a)
+-- handle variables
+eval (UnaryOp f (Var x)) = f (Var x)
+eval (BinaryOp f a (Var y)) = f a (Var y)
+eval (BinaryOp f (Var x) b) = f (Var x) b
 eval (UnaryOp f a) = eval $ f (eval a)
 eval (BinaryOp f a b) = eval $ f (eval a) (eval b)
-eval _expr = error "failed to evaluate expression"
+eval _expr = error "failed to evaluate expression, missing pattern in `eval`"
 
 {- | substitute a value into a variable
 with the same name as the string
 -}
-subVar :: Expr a -> String -> a -> Expr a
-subVar (Var x) name val
+subVar :: String -> a -> Expr a -> Expr a
+subVar name val (Var x)
     | x == name = Const val
     | otherwise = Var x
-subVar (Const a) _ _ = Const a
-subVar (UnaryOp f a) name val = f (subVar a name val)
-subVar (BinaryOp f a b) name val = f (subVar a name val) (subVar b name val)
-subVar e _ _ = e
+subVar _ _ (Const a) = Const a
+subVar name val (UnaryOp f a) = f (subVar name val a)
+subVar name val (BinaryOp f a b) = f (subVar name val a) (subVar name val b)
+subVar _ _ e = e
