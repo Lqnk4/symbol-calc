@@ -166,11 +166,11 @@ eval (ATanh (Const a)) = Const (atanh a)
 eval (Re (Const a)) = Const (realPart a)
 eval (Im (Const a)) = Const (imagPart a)
 -- handle variables
-eval (UnaryOp f (Var x)) = f (Var x)
-eval (BinaryOp f a (Var y)) = f a (Var y)
-eval (BinaryOp f (Var x) b) = f (Var x) b
-eval (UnaryOp f a) = eval $ f (eval a)
-eval (BinaryOp f a b) = eval $ f (eval a) (eval b)
+-- eval (UnaryOp f (Var x)) = f (Var x)
+-- eval (BinaryOp f a (Var y)) = f a (Var y)
+-- eval (BinaryOp f (Var x) b) = f (Var x) b
+eval (UnaryOp f a) = f (eval a)
+eval (BinaryOp f a b) = f (eval a) (eval b)
 eval _expr = error "failed to evaluate expression, missing pattern in `eval`"
 
 {- | substitute a value into a variable

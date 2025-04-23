@@ -22,6 +22,7 @@ library
         Calculus
         Expression
         Parser
+        Number
         Abstract.Group
     -- other-modules:
     -- other-extensions:

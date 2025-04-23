@@ -25,7 +25,7 @@ pExpr = pExpr' <* eof
 
 -- | Intermediate Expression parser, does not throw an error if parsing is interrupted before eof
 pExpr' :: Parser (Expr Double)
-pExpr' = many space1 *> (choice (unaryOps ++ binaryOps ++ [pConst, pVar]) <|> parensT pExpr') <* many space1
+pExpr' = many space1 *> (choice (binaryOps ++ unaryOps ++ [pConst, pVar]) <|> parensT pExpr') <* many space1
 
 binaryOps :: [Parser (Expr Double)]
 binaryOps = [pPlus, pTimes, pSubtract, pDiv, pPower]
